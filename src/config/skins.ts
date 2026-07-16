@@ -23,6 +23,8 @@ export interface SkinTraits {
   flames: boolean;
   ghost: boolean;
   halo: boolean;
+  /** Bioluminescent axolotl gills + fin-tail + cylindrical torso treatment. */
+  gills: boolean;
 }
 
 export interface SkinDef {
@@ -43,6 +45,7 @@ const T = (t: Partial<SkinTraits>): SkinTraits => ({
   flames: false,
   ghost: false,
   halo: false,
+  gills: false,
   ...t,
 });
 
@@ -206,6 +209,24 @@ export const SKINS: SkinDef[] = [
       aura: 0xffe9a8,
     },
     traits: T({ ears: "fox", tails: 5, mask: true, halo: true, flames: true }),
+  },
+  {
+    id: "mizuneko",
+    name: "Mizuneko",
+    desc: "Ni tout à fait chat, ni tout à fait axolotl. Juste bioluminescent.",
+    rarity: "epic",
+    cost: 460,
+    palette: {
+      body: 0xffa8c9,
+      bodyDark: 0xd1608f,
+      belly: 0xfff1f7,
+      // A cyan-jade blend — echoes PALETTE.spirit/jade so its glow reads as
+      // part of the game's own light vocabulary rather than an invented hue.
+      accent: 0x4ee2cd,
+      eye: 0x5ee7ff,
+      aura: 0x5ee7ff,
+    },
+    traits: T({ ears: "cat", tails: 1, gills: true }),
   },
 ];
 

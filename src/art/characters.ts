@@ -1,6 +1,6 @@
 import { Scene } from "phaser";
 
-import { SKINS, type SkinDef } from "../config/skins";
+import { SKINS, type SkinDef, type SkinPalette } from "../config/skins";
 import { CHAR_FRAME, CHAR_H, CHAR_W, charKey } from "./keys";
 import {
   ao,
@@ -192,6 +192,32 @@ function torsoPath(ctx: Ctx, shX: number, hipX: number, grow: number): void {
 }
 
 /**
+ * Bean/cylinder torso for gills-trait skins — a single convex curve from
+ * collar to tail-base with no waist pinch, widest at the belly rather than
+ * the shoulders. A separate path from torsoPath() rather than a parameter
+ * on it, so reshaping this one creature never re-shades the other nine.
+ */
+function cylinderTorsoPath(ctx: Ctx, shX: number, hipX: number, grow: number): void {
+  const top = SHOULDER_Y - 3.5 - grow;
+  const shW = SHOULDER_DX * 0.78 + grow;
+  const bellyY = HIP_Y - 1;
+  const bellyW = HIP_DX + 4.6 + grow;
+  const hem = HIP_Y + 4.2 + grow;
+  const hemW = HIP_DX + 2.8 + grow;
+
+  ctx.beginPath();
+  ctx.moveTo(shX, top);
+  ctx.quadraticCurveTo(shX - shW * 1.1, top + 2, shX - shW, SHOULDER_Y + 3 - grow);
+  ctx.quadraticCurveTo(hipX - bellyW * 1.05, bellyY - 6, hipX - bellyW, bellyY);
+  ctx.quadraticCurveTo(hipX - bellyW * 0.9, hem - 1, hipX - hemW, hem);
+  ctx.quadraticCurveTo(hipX, hem + 2.6 + grow, hipX + hemW, hem);
+  ctx.quadraticCurveTo(hipX + bellyW * 0.9, hem - 1, hipX + bellyW, bellyY);
+  ctx.quadraticCurveTo(hipX + bellyW * 1.05, bellyY - 6, shX + shW, SHOULDER_Y + 3 - grow);
+  ctx.quadraticCurveTo(shX + shW * 1.1, top + 2, shX, top);
+  ctx.closePath();
+}
+
+/**
  * One bent limb segment as a tapered ribbon — reuses the same bezier-offset
  * technique as the tail so a knee/elbow "bend" reads as a bulge along a
  * single smooth path instead of needing true two-bone IK.
@@ -259,6 +285,28 @@ function jointCap(ctx: Ctx, x: number, y: number, r: number, body: number, bodyD
   ctx.fill();
 }
 
+/**
+ * A hand/foot tip as one continuous path — a pad with two toe lobes fused
+ * into its rim, not three separate circles stacked together. Three small
+ * circles read as loose beads at this canvas size; one path with two
+ * generous lobes reads as a paw. Local space: origin at the pad's centre,
+ * toes point toward +y (rotate the context to the limb's own tip direction
+ * before calling).
+ */
+function pawShape(ctx: Ctx, w: number): void {
+  const rx = w * 0.82;
+  const ry = w * 0.62;
+  ctx.beginPath();
+  ctx.moveTo(-rx, -ry * 0.3);
+  ctx.quadraticCurveTo(-rx, ry * 0.6, -rx * 0.35, ry * 0.95);
+  ctx.quadraticCurveTo(-rx * 0.18, ry * 1.35, 0, ry * 1.05);
+  ctx.quadraticCurveTo(rx * 0.18, ry * 1.35, rx * 0.35, ry * 0.95);
+  ctx.quadraticCurveTo(rx, ry * 0.6, rx, -ry * 0.3);
+  ctx.quadraticCurveTo(rx * 0.5, -ry * 1.1, 0, -ry);
+  ctx.quadraticCurveTo(-rx * 0.5, -ry * 1.1, -rx, -ry * 0.3);
+  ctx.closePath();
+}
+
 /* ------------------------------------------------------------------ */
 /* Tails                                                               */
 /* ------------------------------------------------------------------ */
@@ -320,6 +368,50 @@ function tailPath(ctx: Ctx, x0: number, y0: number, t: TailSpec, grow: number): 
   ctx.quadraticCurveTo(tx + cx * w * 1.05, ty + cy * w * 1.05, tx - px * w * 0.28, ty - py * w * 0.28);
   ctx.quadraticCurveTo(mx - px * w * 1.05, my - py * w * 1.05, x0 - px * w * 0.9, y0 - py * w * 0.9);
   ctx.closePath();
+}
+
+/**
+ * A translucent fin membrane over the distal half of a tail — light as
+ * matter rather than a coat of paint over cartilage, the way an axolotl's
+ * own tail fin reads. Traces the same centreline as tailPath() but doesn't
+ * need to match it exactly: it's soft-edged and half-transparent, so a
+ * loose follow of the curve still reads as "glowing membrane," not "mask
+ * slightly off the tail."
+ */
+function paintTailFin(ctx: Ctx, x0: number, y0: number, t: TailSpec, pal: SkinPalette): void {
+  const cx = Math.cos(t.ang);
+  const cy = Math.sin(t.ang);
+  const px = -cy;
+  const py = cx;
+
+  const along = (u: number): { x: number; y: number } => ({
+    x: x0 + cx * t.len * u + px * t.bend * u * u * 0.6,
+    y: y0 + cy * t.len * u + py * t.bend * u * u * 0.6,
+  });
+  const widthAt = (u: number): number => t.wid * (1.4 - ((u - 0.35) / 0.65) * 0.9);
+
+  const a = along(0.35);
+  const mid = along(0.68);
+  const b = along(1);
+  const aw = widthAt(0.35);
+  const midw = widthAt(0.68);
+  const bw = widthAt(1);
+
+  const shape = (): void => {
+    ctx.beginPath();
+    ctx.moveTo(a.x + px * aw, a.y + py * aw);
+    ctx.quadraticCurveTo(mid.x + px * midw, mid.y + py * midw, b.x + px * bw, b.y + py * bw);
+    ctx.quadraticCurveTo(mid.x, mid.y, b.x - px * bw, b.y - py * bw);
+    ctx.quadraticCurveTo(mid.x - px * midw, mid.y - py * midw, a.x - px * aw, a.y - py * aw);
+    ctx.closePath();
+  };
+  ctx.fillStyle = radGrad(ctx, mid.x, mid.y, t.len * 0.5, [
+    [0, pal.accent, 0.65],
+    [1, pal.aura, 0],
+  ]);
+  shape();
+  ctx.fill();
+  rimLight(ctx, shape, pal.aura, 1.2, 0.6);
 }
 
 function paintTails(ctx: Ctx, p: Pose, sk: SkinDef, seed: number, hipX: number): void {
@@ -384,6 +476,8 @@ function paintTails(ctx: Ctx, p: Pose, sk: SkinDef, seed: number, hipX: number):
       ctx.lineTo(tx + Math.cos(a) * (1.6 + rand() * 1.6), ty + Math.sin(a) * (1.6 + rand() * 1.6));
       ctx.stroke();
     }
+
+    if (sk.traits.gills) paintTailFin(ctx, x0, y0, t, pal);
 
     if (i === 0) rand();
   });
@@ -459,8 +553,14 @@ function paintLeg(ctx: Ctx, p: Pose, sk: SkinDef, side: -1 | 1, hipX: number): v
   limbOutline(ctx, x0, y0, spec, INK, 2.1);
   rimLight(ctx, () => path(), pal.aura, 1.4, 0.5);
 
-  // Boot/foot capsule at the tip.
-  const foot = (): void => ellipse(ctx, tx, ty + 1, spec.wid * 0.85, spec.wid * 0.6, side * 0.15);
+  // Boot/foot pad at the tip.
+  const foot = (): void => {
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.rotate(spec.ang);
+    pawShape(ctx, spec.wid * 0.95);
+    ctx.restore();
+  };
   outline(ctx, foot, INK, 1.8, 0.9);
   ctx.fillStyle = radGrad(ctx, tx - 1, ty, spec.wid * 1.1, [
     [0, lighten(pal.bodyDark, 0.05)],
@@ -495,8 +595,14 @@ function paintArm(ctx: Ctx, p: Pose, sk: SkinDef, side: -1 | 1, shX: number): vo
   limbOutline(ctx, x0, y0, spec, INK, 1.9);
   rimLight(ctx, () => path(), pal.aura, 1.2, 0.48);
 
-  // Mitt/fist at the tip.
-  const hand = (): void => circle(ctx, tx, ty, spec.wid * 0.7);
+  // Mitt/paw at the tip.
+  const hand = (): void => {
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.rotate(spec.ang);
+    pawShape(ctx, spec.wid * 0.85);
+    ctx.restore();
+  };
   outline(ctx, hand, INK, 1.6, 0.9);
   ctx.fillStyle = radGrad(ctx, tx - 1, ty - 1, spec.wid * 1.1, [
     [0, lighten(pal.body, 0.12)],
@@ -546,6 +652,53 @@ function paintTorso(ctx: Ctx, sk: SkinDef, shX: number, hipX: number): void {
     keyLight(ctx, shX - SHOULDER_DX * 1.6, SHOULDER_Y - 4, SHOULDER_DX * 3.2, 24, 0.24);
   });
   rimLight(ctx, () => path(), pal.aura, 2, 0.5);
+}
+
+/**
+ * Cylinder torso for gills-trait skins: a dome ambient pass (same technique
+ * as paintTorso) plus a wrap-shading band — symmetric dark edges with a lit
+ * band offset toward the key-light side, the way light reads on a turning
+ * tube rather than a lit dome. Reuses the shared keyLight()/ao() axis so it
+ * still agrees with the rest of the body under the same implied light.
+ */
+function paintCylinderTorso(ctx: Ctx, sk: SkinDef, shX: number, hipX: number): void {
+  const pal = sk.palette;
+  const path = (grow = 0): void => cylinderTorsoPath(ctx, shX, hipX, grow);
+
+  outline(ctx, () => path(), INK, 2.4, 0.92);
+  ctx.fillStyle = radGrad(ctx, shX - 3, SHOULDER_Y + 6, HIP_DX + 10, [
+    [0, lighten(pal.body, 0.24)],
+    [0.45, pal.body],
+    [0.85, pal.bodyDark],
+    [1, darken(pal.bodyDark, 0.28)],
+  ]);
+  path();
+  ctx.fill();
+
+  // Belly patch — the lighter amphibian underside, echoing the collar-V's
+  // lighter-inner-lining idea but centred on the belly instead of the neck.
+  ctx.fillStyle = radGrad(ctx, hipX, HIP_Y - 3, HIP_DX + 5, [
+    [0, lighten(pal.belly, 0.1)],
+    [0.6, pal.belly],
+    [1, mix(pal.belly, pal.bodyDark, 0.4)],
+  ]);
+  ellipse(ctx, hipX, HIP_Y + 1, HIP_DX + 2.6, 7.4);
+  ctx.fill();
+
+  clipped(ctx, () => path(), () => {
+    const bandColor = mix(darken(pal.bodyDark, 0.3), pal.aura, 0.18);
+    ctx.fillStyle = linGrad(ctx, hipX - (HIP_DX + 10), 0, hipX + (HIP_DX + 10), 0, [
+      [0, bandColor, 0.55],
+      [0.3, pal.body, 0],
+      [0.64, lighten(pal.body, 0.2), 0.3],
+      [1, bandColor, 0.5],
+    ]);
+    ctx.fillRect(0, 0, CHAR_W, CHAR_H);
+
+    ao(ctx, hipX, HIP_Y + 1, HIP_DX + 3, 8, 0.3);
+    keyLight(ctx, shX - (HIP_DX + 8), SHOULDER_Y - 2, (HIP_DX + 8) * 1.6, 20, 0.2);
+  });
+  rimLight(ctx, () => path(), pal.aura, 2, 0.55);
 }
 
 /* ------------------------------------------------------------------ */
@@ -628,6 +781,52 @@ function paintEar(ctx: Ctx, p: Pose, sk: SkinDef, side: -1 | 1, seed: number): v
 
   rimLight(ctx, shape, pal.aura, 1.1, 0.45);
   ctx.restore();
+}
+
+/**
+ * External gill fronds, anchored at the jaw rather than the skull — cat ears
+ * already claim the top of the head, so a crown of fronds there would fight
+ * them for silhouette space. Three per side, the one nearest the eye longest.
+ */
+function paintGills(ctx: Ctx, sk: SkinDef): void {
+  const pal = sk.palette;
+
+  for (const side of [-1, 1] as const) {
+    for (let j = 0; j < 3; j++) {
+      const len = 7.2 - j * 1.1;
+      const hw = 1.3 - j * 0.15;
+      const ax = HEAD_X + side * (HEAD_R * 0.88 + j * 0.35);
+      const ay = HEAD_Y + HEAD_R * 0.15 + j * 1.8;
+
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(side * (0.95 + j * 0.2));
+
+      const shape = (): void => {
+        ctx.beginPath();
+        ctx.moveTo(-hw, 1.4);
+        ctx.quadraticCurveTo(-hw * 1.3, -len * 0.5, 0, -len);
+        ctx.quadraticCurveTo(hw * 1.3, -len * 0.5, hw, 1.4);
+        ctx.closePath();
+      };
+      outline(ctx, shape, INK, 1.1, 0.85);
+      ctx.fillStyle = linGrad(ctx, 0, 1, 0, -len, [
+        [0, pal.bodyDark],
+        [1, pal.accent],
+      ]);
+      shape();
+      ctx.fill();
+
+      if (j === 0) {
+        glow(ctx, pal.accent, 2.4, 2, () => {
+          ctx.fillStyle = hex(lighten(pal.accent, 0.3), 0.6);
+          circle(ctx, 0, -len * 0.85, hw * 0.7);
+          ctx.fill();
+        });
+      }
+      ctx.restore();
+    }
+  }
 }
 
 /** Ryūjin's dorsal fins: membranes instead of ears, plus a spined crest. */
@@ -879,7 +1078,8 @@ function paintEye(ctx: Ctx, p: Pose, sk: SkinDef, side: -1 | 1): void {
     else iris();
 
     ctx.fillStyle = hex(darken(pal.eye, 0.85), 0.95);
-    circle(ctx, ix, iy + 0.2, ir * 0.48);
+    if (sk.traits.gills) ellipse(ctx, ix, iy + 0.2, ir * 0.34, ir * 0.85);
+    else circle(ctx, ix, iy + 0.2, ir * 0.48);
     ctx.fill();
 
     const innerX = cx - side * r * 1.5;
@@ -909,7 +1109,10 @@ function paintEye(ctx: Ctx, p: Pose, sk: SkinDef, side: -1 | 1): void {
     ctx.fillStyle = hex(0xffffff, 0.95);
     circle(ctx, ix - ir * 0.44, iy - ir * 0.5, r * 0.3);
     ctx.fill();
-    ctx.fillStyle = hex(0xffffff, 0.5);
+    // Secondary catchlight — tinted with the creature's own aura on
+    // bioluminescent skins, so its ambient glow visibly reflects in its eye
+    // rather than a second plain white highlight.
+    ctx.fillStyle = hex(sk.traits.gills ? pal.aura : 0xffffff, 0.5);
     circle(ctx, ix + ir * 0.42, iy + ir * 0.46, r * 0.14);
     ctx.fill();
   });
@@ -921,15 +1124,16 @@ function paintBrows(ctx: Ctx, p: Pose, sk: SkinDef): void {
   if (p.expr === "hurt") return;
   const pal = sk.palette;
   const g = eyeGeom();
+  const reach = sk.traits.gills ? 0.85 : 1.1;
   ctx.strokeStyle = hex(darken(pal.bodyDark, 0.3), 0.8);
-  ctx.lineWidth = 1.1;
+  ctx.lineWidth = sk.traits.gills ? 1.3 : 1.1;
   ctx.lineCap = "round";
 
   for (const side of [-1, 1] as const) {
     const cx = HEAD_X + side * g.dx;
     const y = g.y - g.r * 1.8;
-    const inner = cx - side * g.r * 1.1;
-    const outer = cx + side * g.r * 1.1;
+    const inner = cx - side * g.r * reach;
+    const outer = cx + side * g.r * reach;
     ctx.beginPath();
     if (p.expr === "determined") {
       ctx.moveTo(inner, y + 1.6);
@@ -1001,24 +1205,37 @@ function paintFace(ctx: Ctx, p: Pose, sk: SkinDef): void {
     ctx.stroke();
   }
 
-  // Whiskers — long and flowing on the dragon.
+  // Cheek dimples — free volume from a localised shadow, no new geometry.
+  if (sk.traits.gills) {
+    for (const side of [-1, 1] as const) {
+      ao(ctx, HEAD_X + side * HEAD_R * 0.62, HEAD_Y + HEAD_R * 0.35, 1.2, 1.2, 0.15);
+    }
+  }
+
+  // Whiskers — long and flowing on the dragon, luminous-tipped on the
+  // bioluminescent axolotl-cat.
   const dragon = sk.traits.ears === "leaf";
+  const glowTip = sk.traits.gills;
   const wl = dragon ? 9.5 : 5;
-  ctx.strokeStyle = hex(0xffffff, dragon ? 0.55 : 0.3);
+  ctx.strokeStyle = hex(0xffffff, dragon ? 0.55 : glowTip ? 0.45 : 0.3);
   ctx.lineWidth = dragon ? 0.9 : 0.7;
   for (const side of [-1, 1] as const) {
     for (let i = 0; i < 2; i++) {
       const y0 = ny + 0.3 + i * 1.6;
       const x0 = HEAD_X + side * (HEAD_R * 0.5);
+      const tipX = x0 + side * wl;
+      const tipY = y0 + (dragon ? 2 + i * 1.6 : i * 1.3 - 0.5);
       ctx.beginPath();
       ctx.moveTo(x0, y0);
-      ctx.quadraticCurveTo(
-        x0 + side * wl * 0.6,
-        y0 - 1.1 + i * 1.3,
-        x0 + side * wl,
-        y0 + (dragon ? 2 + i * 1.6 : i * 1.3 - 0.5)
-      );
+      ctx.quadraticCurveTo(x0 + side * wl * 0.6, y0 - 1.1 + i * 1.3, tipX, tipY);
       ctx.stroke();
+      if (glowTip) {
+        glow(ctx, pal.aura, 1.6, 2, () => {
+          ctx.fillStyle = hex(lighten(pal.aura, 0.3), 0.7);
+          circle(ctx, tipX, tipY, 0.5);
+          ctx.fill();
+        });
+      }
     }
   }
 }
@@ -1378,7 +1595,8 @@ export function paintCharacter(ctx: Ctx, w: number, h: number, skin: SkinDef, fr
     paintLeg(ctx, p, skin, -1, hipX);
     paintLeg(ctx, p, skin, 1, hipX);
   }
-  paintTorso(ctx, skin, shX, hipX);
+  if (t.gills) paintCylinderTorso(ctx, skin, shX, hipX);
+  else paintTorso(ctx, skin, shX, hipX);
   if (!t.ghost) {
     paintArm(ctx, p, skin, -1, shX);
     paintArm(ctx, p, skin, 1, shX);
@@ -1389,6 +1607,7 @@ export function paintCharacter(ctx: Ctx, w: number, h: number, skin: SkinDef, fr
     paintEar(ctx, p, skin, -1, seed);
     paintEar(ctx, p, skin, 1, seed);
   }
+  if (t.gills) paintGills(ctx, skin);
 
   paintHead(ctx, skin);
   paintHeadband(ctx, skin);
