@@ -89,8 +89,8 @@ const POSES: Record<number, Pose> = {
     headTilt: 0, torsoLean: 0,
     legL: { ang: -0.16, bend: 0.5, len: 15, wid: 4.4 },
     legR: { ang: 0.2, bend: -0.55, len: 15, wid: 4.4 },
-    armL: { ang: -0.32, bend: 0.4, len: 12.6, wid: 3.5 },
-    armR: { ang: 0.28, bend: -0.3, len: 12.6, wid: 3.5 },
+    armL: { ang: -0.46, bend: 0.4, len: 12.6, wid: 3.5 },
+    armR: { ang: 0.42, bend: -0.3, len: 12.6, wid: 3.5 },
     scarfKick: 0.15,
     earDrop: [0, 0], tailSweep: 0,
     tilt: 0, expr: "open", lid: 0.06, stars: false, ruffle: 0,
@@ -99,8 +99,8 @@ const POSES: Record<number, Pose> = {
     headTilt: 0.02, torsoLean: 0.3,
     legL: { ang: -0.12, bend: 0.55, len: 15, wid: 4.4 },
     legR: { ang: 0.24, bend: -0.5, len: 15, wid: 4.4 },
-    armL: { ang: -0.28, bend: 0.44, len: 12.6, wid: 3.5 },
-    armR: { ang: 0.32, bend: -0.24, len: 12.6, wid: 3.5 },
+    armL: { ang: -0.42, bend: 0.44, len: 12.6, wid: 3.5 },
+    armR: { ang: 0.46, bend: -0.24, len: 12.6, wid: 3.5 },
     scarfKick: 0.2,
     earDrop: [0.11, 0.06], tailSweep: -0.07,
     tilt: 0, expr: "open", lid: 0.46, stars: false, ruffle: 0,
@@ -473,7 +473,10 @@ function paintLeg(ctx: Ctx, p: Pose, sk: SkinDef, side: -1 | 1, hipX: number): v
 function paintArm(ctx: Ctx, p: Pose, sk: SkinDef, side: -1 | 1, shX: number): void {
   const pal = sk.palette;
   const spec = side < 0 ? p.armL : p.armR;
-  const x0 = shX + side * SHOULDER_DX * 0.7;
+  // Anchored just inside the shoulder edge, not deep in the torso's centre —
+  // deep overlap put the arm's own outline running down through the middle
+  // of the torso fill, reading as a stray construction line across it.
+  const x0 = shX + side * SHOULDER_DX * 0.94;
   const y0 = SHOULDER_Y - 0.5;
   const path = (): { tx: number; ty: number } => limbPath(ctx, x0, y0, spec, 0);
 
@@ -512,11 +515,14 @@ function paintTorso(ctx: Ctx, sk: SkinDef, shX: number, hipX: number): void {
   const path = (grow = 0): void => torsoPath(ctx, shX, hipX, grow);
 
   outline(ctx, () => path(), INK, 2.4, 0.92);
-  ctx.fillStyle = radGrad(ctx, shX - SHOULDER_DX * 0.4, SHOULDER_Y + 3, SHOULDER_DX * 2.1, [
-    [0, lighten(pal.body, 0.24)],
-    [0.42, pal.body],
-    [0.82, pal.bodyDark],
-    [1, darken(pal.bodyDark, 0.28)],
+  // A vertical gradient, not a radial one — the torso is a tall tube, not a
+  // disc, and a circular gradient center reads as a coin floating inside it
+  // instead of light wrapping down a cylinder.
+  ctx.fillStyle = linGrad(ctx, shX, SHOULDER_Y - 4, shX, HIP_Y + 6, [
+    [0, lighten(pal.body, 0.22)],
+    [0.32, pal.body],
+    [0.72, pal.bodyDark],
+    [1, darken(pal.bodyDark, 0.3)],
   ]);
   path();
   ctx.fill();
@@ -1388,7 +1394,10 @@ export function paintCharacter(ctx: Ctx, w: number, h: number, skin: SkinDef, fr
   paintHeadband(ctx, skin);
   if (t.horns) paintHorns(ctx, skin);
 
-  ao(ctx, hipX, HIP_Y + 2, HIP_DX + 3, 6, 0.3);
+  // Small contact-shadow patches only — HIP_DX+3/ry=6 here used to reach a
+  // radius of ~9.9 (max(rx,ry)*1.5), bleeding all the way up past the
+  // shoulder and reading as an unexplained dark band across the torso.
+  ao(ctx, hipX, HIP_Y + 4, HIP_DX + 1, 3, 0.32);
   ao(ctx, HEAD_X, HEAD_Y + 2, HEAD_R, HEAD_R, 0.28);
 
   if (t.mask) {

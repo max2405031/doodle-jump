@@ -179,12 +179,15 @@ export class MainMenu extends Scene {
         .setDisplaySize(36, 36)
         .setInteractive({ useHandCursor: true });
 
+      const baseScaleX = iconImg.scaleX;
+      const baseScaleY = iconImg.scaleY;
+
       iconImg.on("pointerdown", () => transitionTo(this, entry.scene));
       iconImg.on("pointerover", () => {
-        this.tweens.add({ targets: iconImg, scale: 1.1, duration: 100 });
+        this.tweens.add({ targets: iconImg, scaleX: baseScaleX * 1.1, scaleY: baseScaleY * 1.1, duration: 100 });
       });
       iconImg.on("pointerout", () => {
-        this.tweens.add({ targets: iconImg, scale: 1, duration: 100 });
+        this.tweens.add({ targets: iconImg, scaleX: baseScaleX, scaleY: baseScaleY, duration: 100 });
       });
 
       const lbl = this.add.text(0, 35, entry.label, TEXT.label(14, CSS.white)).setOrigin(0.5);
