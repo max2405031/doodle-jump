@@ -1411,20 +1411,6 @@ export function paintCharacter(ctx: Ctx, w: number, h: number, skin: SkinDef, fr
 
   keyLight(ctx, 3, 2, 42, 46, 0.22);
 
-  // A permanent soft bloom around the head and torso — every skin, not just
-  // halo/flame traits, so the silhouette always separates from a dark sky
-  // the way the reference art does.
-  glow(ctx, pal.aura, 4, 2, () => {
-    ctx.strokeStyle = hex(lighten(pal.aura, 0.25), 0.42);
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    headPath(ctx, HEAD_X, HEAD_Y, 0.4);
-    ctx.stroke();
-    ctx.beginPath();
-    torsoPath(ctx, shX, hipX, 0.4);
-    ctx.stroke();
-  });
-
   if (t.ghost) dissolve(ctx, skin, w, h, seed);
   ctx.restore();
 
