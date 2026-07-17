@@ -17,9 +17,16 @@ export const CHAR_FRAME = {
   rise: 2,
   fall: 3,
   hurt: 4,
+  blink: 5,
+  crouch: 6,
+  land: 7,
+  hoverA: 8,
+  hoverB: 9,
+  hoverC: 10,
+  flip: 11,
 } as const;
 
-export const CHAR_FRAME_COUNT = 5;
+export const CHAR_FRAME_COUNT = 12;
 
 /** Logical size every character sheet is authored at. */
 export const CHAR_W = 48;

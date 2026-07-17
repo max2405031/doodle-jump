@@ -1,7 +1,7 @@
 import { Scene } from "phaser";
 
 import { SKINS, type SkinDef, type SkinPalette } from "../config/skins";
-import { CHAR_FRAME, CHAR_H, CHAR_W, charKey } from "./keys";
+import { CHAR_FRAME, CHAR_FRAME_COUNT, CHAR_H, CHAR_W, charKey } from "./keys";
 import {
   ao,
   aura,
@@ -134,6 +134,83 @@ const POSES: Record<number, Pose> = {
     scarfKick: -0.4,
     earDrop: [0.15, 0.85], tailSweep: 0.16,
     tilt: 0.22, expr: "hurt", lid: 1, stars: true, ruffle: 1,
+  },
+  /** Same silhouette as idle — a blink is purely a lid change, never a body hop. */
+  [CHAR_FRAME.blink]: {
+    headTilt: 0, torsoLean: 0,
+    legL: { ang: -0.16, bend: 0.5, len: 15, wid: 4.4 },
+    legR: { ang: 0.2, bend: -0.55, len: 15, wid: 4.4 },
+    armL: { ang: -0.46, bend: 0.4, len: 12.6, wid: 3.5 },
+    armR: { ang: 0.42, bend: -0.3, len: 12.6, wid: 3.5 },
+    scarfKick: 0.15,
+    earDrop: [0, 0], tailSweep: 0,
+    tilt: 0, expr: "open", lid: 1, stars: false, ruffle: 0,
+  },
+  /** Coiled anticipation, still grounded — legs tucked tight, arms drawn back like a sprinter. */
+  [CHAR_FRAME.crouch]: {
+    headTilt: -0.08, torsoLean: -0.6,
+    legL: { ang: -0.35, bend: 1.35, len: 9, wid: 4.8 },
+    legR: { ang: 0.1, bend: -1.4, len: 9, wid: 4.8 },
+    armL: { ang: -0.75, bend: 0.35, len: 9.5, wid: 3.6 },
+    armR: { ang: -0.55, bend: -0.3, len: 9.5, wid: 3.6 },
+    scarfKick: -0.35,
+    earDrop: [0.5, 0.5], tailSweep: 0.3,
+    tilt: 0, expr: "determined", lid: 0.15, stars: false, ruffle: 0,
+  },
+  /** Impact frame — wide splayed stance absorbing the landing, arms out for balance. */
+  [CHAR_FRAME.land]: {
+    headTilt: 0.1, torsoLean: 0.15,
+    legL: { ang: -0.55, bend: 1.15, len: 10, wid: 5.2 },
+    legR: { ang: 0.55, bend: -1.15, len: 10, wid: 5.2 },
+    armL: { ang: -0.7, bend: 0.5, len: 11, wid: 3.6 },
+    armR: { ang: 0.7, bend: -0.5, len: 11, wid: 3.6 },
+    scarfKick: 0.5,
+    earDrop: [0.3, 0.3], tailSweep: 0.25,
+    tilt: 0, expr: "determined", lid: 0.2, stars: false, ruffle: 0,
+  },
+  /** Apex float, leaning left — ping-pongs with hoverB/hoverC via Pose.tilt. */
+  [CHAR_FRAME.hoverA]: {
+    headTilt: 0.02, torsoLean: 0.1,
+    legL: { ang: -0.08, bend: 0.15, len: 15.4, wid: 4.3 },
+    legR: { ang: 0.1, bend: -0.15, len: 15.4, wid: 4.3 },
+    armL: { ang: -0.55, bend: 0.15, len: 12.8, wid: 3.4 },
+    armR: { ang: 0.55, bend: -0.15, len: 12.8, wid: 3.4 },
+    scarfKick: -0.05,
+    earDrop: [0.05, 0.05], tailSweep: 0.05,
+    tilt: -0.05, expr: "open", lid: 0.15, stars: false, ruffle: 0,
+  },
+  /** Apex float, centered. */
+  [CHAR_FRAME.hoverB]: {
+    headTilt: 0.02, torsoLean: 0.1,
+    legL: { ang: -0.08, bend: 0.15, len: 15.4, wid: 4.3 },
+    legR: { ang: 0.1, bend: -0.15, len: 15.4, wid: 4.3 },
+    armL: { ang: -0.55, bend: 0.15, len: 12.8, wid: 3.4 },
+    armR: { ang: 0.55, bend: -0.15, len: 12.8, wid: 3.4 },
+    scarfKick: -0.05,
+    earDrop: [0.05, 0.05], tailSweep: 0.05,
+    tilt: 0, expr: "open", lid: 0.15, stars: false, ruffle: 0,
+  },
+  /** Apex float, leaning right. */
+  [CHAR_FRAME.hoverC]: {
+    headTilt: 0.02, torsoLean: 0.1,
+    legL: { ang: -0.08, bend: 0.15, len: 15.4, wid: 4.3 },
+    legR: { ang: 0.1, bend: -0.15, len: 15.4, wid: 4.3 },
+    armL: { ang: -0.55, bend: 0.15, len: 12.8, wid: 3.4 },
+    armR: { ang: 0.55, bend: -0.15, len: 12.8, wid: 3.4 },
+    scarfKick: -0.05,
+    earDrop: [0.05, 0.05], tailSweep: 0.05,
+    tilt: 0.05, expr: "open", lid: 0.15, stars: false, ruffle: 0,
+  },
+  /** Tucked ball silhouette for the onibi flip — tilt stays 0, rotation is a sprite.rotation tween. */
+  [CHAR_FRAME.flip]: {
+    headTilt: 0.35, torsoLean: 0,
+    legL: { ang: -0.9, bend: 1.6, len: 9, wid: 4.6 },
+    legR: { ang: 0.9, bend: -1.6, len: 9, wid: 4.6 },
+    armL: { ang: -1.5, bend: 0.6, len: 9, wid: 3.4 },
+    armR: { ang: 1.5, bend: -0.6, len: 9, wid: 3.4 },
+    scarfKick: 0,
+    earDrop: [0.6, 0.6], tailSweep: 0.5,
+    tilt: 0, expr: "determined", lid: 0.5, stars: false, ruffle: 0,
   },
 };
 
@@ -1652,13 +1729,12 @@ export function charAnim(skinId: string): string {
 export function registerCharacters(scene: Scene): void {
   for (const skin of SKINS) {
     const key = charKey(skin.id);
-    const frames: DrawFn[] = [
-      CHAR_FRAME.idle,
-      CHAR_FRAME.idleAlt,
-      CHAR_FRAME.rise,
-      CHAR_FRAME.fall,
-      CHAR_FRAME.hurt,
-    ].map((f): DrawFn => (ctx, w, h) => paintCharacter(ctx, w, h, skin, f));
+    const frames: DrawFn[] = Array.from(
+      { length: CHAR_FRAME_COUNT },
+      (_, f): DrawFn =>
+        (ctx, w, h) =>
+          paintCharacter(ctx, w, h, skin, f)
+    );
 
     defineSheet(scene, key, CHAR_W, CHAR_H, frames);
 

@@ -388,6 +388,7 @@ export class Game extends Scene {
           const result = this.platformManager.bounce(platSprite, JUMP_FORCE, LOTUS_JUMP_MULTIPLIER);
           if (!result) return;
           this.player.autoJump(result.force);
+          this.player.showBounce();
           this.registerBounce(result.boosted);
           this.particleManager.emitJump(this.player.sprite.x, this.player.sprite.y + 20);
           if (result.breaking) this.particleManager.emitBreak(platSprite.x, platSprite.y);
@@ -461,6 +462,7 @@ export class Game extends Scene {
 
     if (onTop && data.stompable) {
       this.player.autoJump(STOMP_BOUNCE);
+      this.player.showBounce();
       this.registerBounce(true);
       this.juice.hitstop(45);
       this.particleManager.emitStomp(enemySprite.x, enemySprite.y);
@@ -476,6 +478,7 @@ export class Game extends Scene {
       AudioManager.play("shield");
       this.juice.flash(PALETTE.jade, 0.4, 160);
       this.player.autoJump(JUMP_FORCE * 0.7);
+      this.player.showBounce();
       return;
     }
 
